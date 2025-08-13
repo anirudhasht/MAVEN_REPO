@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spiritual AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-900">
+    <div class="flex flex-col h-screen">
+      <header class="bg-white border-b shadow-sm">
+        <div class="max-w-3xl mx-auto py-3 px-4 flex items-center gap-3">
+          <div class="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></div>
+          <div>
+            <h1 class="text-lg font-semibold">Spiritual Guide</h1>
+            <p class="text-xs text-gray-500">Calm. Compassionate. Practical wisdom.</p>
+          </div>
+        </div>
+      </header>
+
+      <main id="chat" class="flex-1 overflow-y-auto max-w-3xl w-full mx-auto px-4 py-4">
+        <div id="messages" class="space-y-4"></div>
+      </main>
+
+      <footer class="border-t bg-white">
+        <form id="chat-form" class="max-w-3xl mx-auto px-4 py-3 flex gap-2">
+          <input id="prompt" type="text" placeholder="Ask for guidance..." class="flex-1 rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" required />
+          <button id="send" class="rounded-lg bg-purple-600 text-white px-4 py-2 hover:bg-purple-700">Send</button>
+        </form>
+      </footer>
+    </div>
+
+    <script>
+      const messagesEl = document.getElementById('messages');
+      const form = document.getElementById('chat-form');
+      const promptEl = document.getElementById('prompt');
+
+      const history = [];
+
+      function addMessage(role, content) {
+        const isUser = role === 'user';
+        const bubble = document.createElement('div');
+        bubble.className = `max-w-3xl flex ${isUser ? 'justify-end' : 'justify-start'}`;
+        bubble.innerHTML = `
+          <div class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isUser ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white rounded-bl-none border'}">
+            <div class="whitespace-pre-wrap leading-relaxed">${content}</div>
+          </div>
+        `;
+        messagesEl.appendChild(bubble);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function addAssistantStreamBubble() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'max-w-3xl flex justify-start';
+        const bubble = document.createElement('div');
+        bubble.className = 'max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-white rounded-bl-none border';
+        const content = document.createElement('div');
+        content.className = 'whitespace-pre-wrap leading-relaxed';
+        bubble.appendChild(content);
+        wrapper.appendChild(bubble);
+        messagesEl.appendChild(wrapper);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return content;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = promptEl.value.trim();
+        if (!text) return;
+        promptEl.value = '';
+
+        addMessage('user', text);
+
+        const streamEl = addAssistantStreamBubble();
+        let full = '';
+
+        try {
+          const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              history,
+              use_rag: true
+            })
+          });
+
+          if (!resp.ok || !resp.body) {
+            throw new Error('Network error');
+          }
+
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            full += chunk;
+            streamEl.textContent = full;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+
+          history.push({ role: 'user', content: text });
+          history.push({ role: 'assistant', content: full });
+        } catch (err) {
+          streamEl.textContent = 'Sorry, something went wrong.';
+        }
+      });
+    </script>
+  </body>
+</html>

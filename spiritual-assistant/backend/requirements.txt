@@ -1,0 +1,8 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+python-dotenv==1.1.1
+openai==1.99.9
+httpx==0.28.1
+sse-starlette==3.0.2
+python-multipart==0.0.20
+aiofiles==24.1.0
